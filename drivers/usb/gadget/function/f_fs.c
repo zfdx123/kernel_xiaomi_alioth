@@ -3815,7 +3815,7 @@ static void ffs_func_unbind(struct usb_configuration *c,
 	drain_workqueue(ffs->io_completion_wq);
 
 	ffs_event_add(ffs, FUNCTIONFS_UNBIND);
-	if (!--opts->refcnt)
+	if (!--opts->refcnt) {
 		functionfs_unbind(ffs);
 	}
 
