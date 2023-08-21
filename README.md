@@ -1,16 +1,5 @@
 # Linux 4.19 kernel for Redmi K40 (alioth/in)
 
-## Source code mirrors
-Because of CGF (China's Great Firewall),
-the latest code of this kernel has been moved to **Codeberg** now.
-But all of mirrors will auto sync from the repo at Codeberg.
-
-Please visit Codeberg page for getting the latest download and changes.
-
-- **[Codeberg](https://gitea.com/LeviMarvin/kernel_xiaomi_alioth)**
-- [Github](https://github.com/LeviMarvin/kernel_xiaomi_alioth)
-- [Gitlab](https://gitlab.com/lmperf/kernel/alioth)
-
 ## Feature
 - Linux Upstream: `4.19.y`/`4.19.289`
 - ACK code branch: `android-4.19-stable`
@@ -43,9 +32,4 @@ and download `Image` file from the latest release.
 3. Copy and replace `Image`/`kernel` file (with same name) to unpacked `boot.img` directory.
 4. Repack the `boot.img` file with replaced kernel file.
 5. Reboot into Bootloader mode, flash boot.img to the boot partition of your phone.
-
-## BUG Report
-Please go to the Codeberg page.
-
-The issue which issued on Github maybe not be solved at time.
 
