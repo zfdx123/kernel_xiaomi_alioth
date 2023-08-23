@@ -4,7 +4,7 @@
 - Linux Upstream: `4.19.y`/`4.19.289`
 - ACK code branch: `android-4.19-stable`
     - Extra: `android-trusty-4.19`
-- CLO code tag: `LA.UM.9.12.r1-15200.02-SMxx50.0`
+- CLO code tag: `LA.UM.9.12.r1-15600-SMxx50.0`
 - KernelSU version: git clone https://github.com/tiann/KernelSU
     ./kernelSU/kernel/setup.sh
 - CPU Freq: Ondemand
