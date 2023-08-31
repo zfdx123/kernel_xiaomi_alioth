@@ -2042,7 +2042,6 @@ static void mmc_blk_mq_dec_in_flight(struct mmc_queue *mq,
 				     struct request_queue *q,
 				     enum mmc_issue_type issue_type)
 {
-	struct request_queue *q = req->q;
 	struct mmc_host *host = mq->card->host;
 	unsigned long flags;
 	bool put_card;
