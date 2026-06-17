@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Copyright (c) 2015-2020, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2015-2019, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2021-2022 Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #include <linux/errno.h>
@@ -30,6 +31,7 @@ static void dsi_catalog_cmn_init(struct dsi_ctrl_hw *ctrl,
 	ctrl->ops.reset_cmd_fifo         = dsi_ctrl_hw_cmn_reset_cmd_fifo;
 	ctrl->ops.trigger_command_dma    = dsi_ctrl_hw_cmn_trigger_command_dma;
 	ctrl->ops.get_interrupt_status   = dsi_ctrl_hw_cmn_get_interrupt_status;
+	ctrl->ops.poll_slave_dma_status  = dsi_ctrl_hw_cmn_poll_slave_dma_status;
 	ctrl->ops.get_error_status       = dsi_ctrl_hw_cmn_get_error_status;
 	ctrl->ops.clear_error_status     = dsi_ctrl_hw_cmn_clear_error_status;
 	ctrl->ops.clear_interrupt_status =
@@ -64,6 +66,8 @@ static void dsi_catalog_cmn_init(struct dsi_ctrl_hw *ctrl,
 	ctrl->ops.wait4dynamic_refresh_done =
 		dsi_ctrl_hw_cmn_wait4dynamic_refresh_done;
 	ctrl->ops.hs_req_sel = dsi_ctrl_hw_cmn_hs_req_sel;
+	ctrl->ops.vid_engine_busy = dsi_ctrl_hw_cmn_vid_engine_busy;
+	ctrl->ops.init_cmddma_trig_ctrl = dsi_ctrl_hw_cmn_init_cmddma_trig_ctrl;
 
 	switch (version) {
 	case DSI_CTRL_VERSION_1_4:
@@ -207,6 +211,7 @@ static void dsi_catalog_phy_2_0_init(struct dsi_phy_hw *phy)
 		dsi_phy_hw_v2_0_dyn_refresh_pipe_delay;
 	phy->ops.dyn_refresh_ops.dyn_refresh_helper =
 		dsi_phy_hw_v2_0_dyn_refresh_helper;
+	phy->ops.dyn_refresh_ops.dyn_refresh_trigger_sel = NULL;
 	phy->ops.dyn_refresh_ops.cache_phy_timings =
 		dsi_phy_hw_v2_0_cache_phy_timings;
 }
@@ -242,6 +247,7 @@ static void dsi_catalog_phy_3_0_init(struct dsi_phy_hw *phy)
 		dsi_phy_hw_v3_0_dyn_refresh_pipe_delay;
 	phy->ops.dyn_refresh_ops.dyn_refresh_helper =
 		dsi_phy_hw_v3_0_dyn_refresh_helper;
+	phy->ops.dyn_refresh_ops.dyn_refresh_trigger_sel = NULL;
 	phy->ops.dyn_refresh_ops.cache_phy_timings =
 		dsi_phy_hw_v3_0_cache_phy_timings;
 }
@@ -278,6 +284,8 @@ static void dsi_catalog_phy_4_0_init(struct dsi_phy_hw *phy)
 		dsi_phy_hw_v4_0_dyn_refresh_pipe_delay;
 	phy->ops.dyn_refresh_ops.dyn_refresh_helper =
 		dsi_phy_hw_v4_0_dyn_refresh_helper;
+	phy->ops.dyn_refresh_ops.dyn_refresh_trigger_sel =
+		dsi_phy_hw_v4_0_dyn_refresh_trigger_sel;
 	phy->ops.dyn_refresh_ops.cache_phy_timings =
 		dsi_phy_hw_v4_0_cache_phy_timings;
 	phy->ops.set_continuous_clk = dsi_phy_hw_v4_0_set_continuous_clk;

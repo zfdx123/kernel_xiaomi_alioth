@@ -1045,11 +1045,7 @@ static void sde_kms_commit(struct msm_kms *kms,
 			sde_crtc_commit_kickoff(crtc, old_crtc_state);
 		}
 	}
-/*
-	for_each_old_crtc_in_state(old_state, crtc, old_crtc_state, i) {
-		sde_crtc_fod_ui_ready(crtc, old_crtc_state);
-	}
-*/
+
 	SDE_ATRACE_END("sde_kms_commit");
 }
 
@@ -1279,7 +1275,7 @@ static void sde_kms_wait_for_commit_done(struct msm_kms *kms,
 			sde_encoder_virt_reset(encoder);
 	}
 
-	SDE_ATRACE_END("sde_kms_wait_for_commit_done");
+	SDE_ATRACE_END("sde_ksm_wait_for_commit_done");
 }
 
 static void sde_kms_prepare_fence(struct msm_kms *kms,
@@ -1441,6 +1437,7 @@ static int _sde_kms_setup_displays(struct drm_device *dev,
 		.get_panel_vfp = dsi_display_get_panel_vfp,
 		.get_default_lms = dsi_display_get_default_lms,
 		.get_qsync_min_fps = dsi_display_get_qsync_min_fps,
+		.cmd_receive = dsi_display_cmd_receive,
 	};
 	static const struct sde_connector_ops wb_ops = {
 		.post_init =    sde_wb_connector_post_init,
@@ -1456,6 +1453,7 @@ static int _sde_kms_setup_displays(struct drm_device *dev,
 		.cmd_transfer = NULL,
 		.cont_splash_config = NULL,
 		.get_panel_vfp = NULL,
+		.cmd_receive = NULL,
 	};
 	static const struct sde_connector_ops dp_ops = {
 		.set_info_blob = dp_connnector_set_info_blob,
@@ -1474,6 +1472,7 @@ static int _sde_kms_setup_displays(struct drm_device *dev,
 		.cont_splash_config = NULL,
 		.get_panel_vfp = NULL,
 		.update_pps = dp_connector_update_pps,
+		.cmd_receive = NULL,
 	};
 	struct msm_display_info info;
 	struct drm_encoder *encoder;
@@ -3970,4 +3969,15 @@ int sde_kms_handle_recovery(struct drm_encoder *encoder)
 {
 	SDE_EVT32(DRMID(encoder), MSM_ENC_ACTIVE_REGION);
 	return sde_encoder_wait_for_event(encoder, MSM_ENC_ACTIVE_REGION);
+}
+
+void sde_kms_kickoff_count(struct sde_kms *sde_kms)
+{
+	int i;
+	struct dsi_display *display = NULL;
+
+	if (sde_kms != NULL) {
+		for (i = 0; i < sde_kms->dsi_display_count; ++i)
+			display = sde_kms->dsi_displays[i];
+	}
 }
