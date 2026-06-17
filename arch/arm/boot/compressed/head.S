@@ -121,14 +121,7 @@
 #endif
 		.endm
 
-		.macro	be32tocpu, val, tmp
-#ifndef __ARMEB__
-		/* convert to little endian */
-		rev_l	\val, \tmp
-#endif
-		.endm
-
-		.section ".start", "ax", #alloc, #execinstr
+		.section ".start", "ax"
 /*
  * sort out different calling conventions
  */
@@ -705,7 +698,7 @@ __setup_mmu:	sub	r3, r4, #16384		@ Page directory size
 		mov	r0, r3
 		mov	r9, r0, lsr #18
 		mov	r9, r9, lsl #18		@ start of RAM
-		add	r10, r9, #CONFIG_ARM_DECOMPRESSOR_LIMIT
+		add	r10, r9, #0x10000000	@ a reasonable RAM size
 		mov	r1, #0x12		@ XN|U + section mapping
 		orr	r1, r1, #3 << 10	@ AP=11
 		add	r2, r3, #16384

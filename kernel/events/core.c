@@ -1753,9 +1753,6 @@ static int __perf_event_read_size(u64 read_format, int nr_siblings)
 	if (read_format & PERF_FORMAT_ID)
 		entry += sizeof(u64);
 
-	if (read_format & PERF_FORMAT_LOST)
-		entry += sizeof(u64);
-
 	if (read_format & PERF_FORMAT_GROUP) {
 		nr += nr_siblings;
 		size += sizeof(u64);
@@ -1861,16 +1858,6 @@ static bool perf_event_validate_size(struct perf_event *event)
 	if (__perf_event_read_size(group_leader->attr.read_format,
 				   group_leader->nr_siblings + 1) > 16*1024)
 		return false;
-
-	/*
-	 * When creating a new group leader, group_leader->ctx is initialized
-	 * after the size has been validated, but we cannot safely use
-	 * for_each_sibling_event() until group_leader->ctx is set. A new group
-	 * leader cannot have any siblings yet, so we can safely skip checking
-	 * the non-existent siblings.
-	 */
-	if (event == group_leader)
-		return true;
 
 	for_each_sibling_event(sibling, group_leader) {
 		if (__perf_event_read_size(sibling->attr.read_format,
@@ -4996,15 +4983,11 @@ static int __perf_read_group_add(struct perf_event *leader,
 	values[n++] += perf_event_count(leader);
 	if (read_format & PERF_FORMAT_ID)
 		values[n++] = primary_event_id(leader);
-	if (read_format & PERF_FORMAT_LOST)
-		values[n++] = atomic64_read(&leader->lost_samples);
 
 	for_each_sibling_event(sub, leader) {
 		values[n++] += perf_event_count(sub);
 		if (read_format & PERF_FORMAT_ID)
 			values[n++] = primary_event_id(sub);
-		if (read_format & PERF_FORMAT_LOST)
-			values[n++] = atomic64_read(&sub->lost_samples);
 	}
 
 unlock:
@@ -5058,7 +5041,7 @@ static int perf_read_one(struct perf_event *event,
 				 u64 read_format, char __user *buf)
 {
 	u64 enabled, running;
-	u64 values[5];
+	u64 values[4];
 	int n = 0;
 
 	values[n++] = __perf_event_read_value(event, &enabled, &running);
@@ -5068,8 +5051,6 @@ static int perf_read_one(struct perf_event *event,
 		values[n++] = running;
 	if (read_format & PERF_FORMAT_ID)
 		values[n++] = primary_event_id(event);
-	if (read_format & PERF_FORMAT_LOST)
-		values[n++] = atomic64_read(&event->lost_samples);
 
 	if (copy_to_user(buf, values, n * sizeof(u64)))
 		return -EFAULT;
@@ -6403,7 +6384,7 @@ static void perf_output_read_one(struct perf_output_handle *handle,
 				 u64 enabled, u64 running)
 {
 	u64 read_format = event->attr.read_format;
-	u64 values[5];
+	u64 values[4];
 	int n = 0;
 
 	values[n++] = perf_event_count(event);
@@ -6417,8 +6398,6 @@ static void perf_output_read_one(struct perf_output_handle *handle,
 	}
 	if (read_format & PERF_FORMAT_ID)
 		values[n++] = primary_event_id(event);
-	if (read_format & PERF_FORMAT_LOST)
-		values[n++] = atomic64_read(&event->lost_samples);
 
 	__output_copy(handle, values, n * sizeof(u64));
 }
@@ -6430,7 +6409,7 @@ static void perf_output_read_group(struct perf_output_handle *handle,
 	struct perf_event *leader = event->group_leader, *sub;
 	u64 read_format = event->attr.read_format;
 	unsigned long flags;
-	u64 values[6];
+	u64 values[5];
 	int n = 0;
 
 	/*
@@ -6454,8 +6433,6 @@ static void perf_output_read_group(struct perf_output_handle *handle,
 	values[n++] = perf_event_count(leader);
 	if (read_format & PERF_FORMAT_ID)
 		values[n++] = primary_event_id(leader);
-	if (read_format & PERF_FORMAT_LOST)
-		values[n++] = atomic64_read(&leader->lost_samples);
 
 	__output_copy(handle, values, n * sizeof(u64));
 
@@ -6469,8 +6446,6 @@ static void perf_output_read_group(struct perf_output_handle *handle,
 		values[n++] = perf_event_count(sub);
 		if (read_format & PERF_FORMAT_ID)
 			values[n++] = primary_event_id(sub);
-		if (read_format & PERF_FORMAT_LOST)
-			values[n++] = atomic64_read(&sub->lost_samples);
 
 		__output_copy(handle, values, n * sizeof(u64));
 	}
@@ -10974,12 +10949,12 @@ SYSCALL_DEFINE5(perf_event_open,
 	if (flags & ~PERF_FLAG_ALL)
 		return -EINVAL;
 
-	/* Do we allow access to perf_event_open(2) ? */
-	err = security_perf_event_open(&attr, PERF_SECURITY_OPEN);
+	err = perf_copy_attr(attr_uptr, &attr);
 	if (err)
 		return err;
 
-	err = perf_copy_attr(attr_uptr, &attr);
+	/* Do we allow access to perf_event_open(2) ? */
+	err = security_perf_event_open(&attr, PERF_SECURITY_OPEN);
 	if (err)
 		return err;
 

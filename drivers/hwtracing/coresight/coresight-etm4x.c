@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * Copyright (c) 2014,2016,2018, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2014, The Linux Foundation. All rights reserved.
  */
 
 #include <linux/kernel.h>
@@ -21,7 +21,6 @@
 #include <linux/cpu_pm.h>
 #include <linux/coresight.h>
 #include <linux/coresight-pmu.h>
-#include <linux/of.h>
 #include <linux/pm_wakeup.h>
 #include <linux/amba/bus.h>
 #include <linux/seq_file.h>
@@ -48,8 +47,6 @@ module_param(pm_save_enable, int, 0444);
 MODULE_PARM_DESC(pm_save_enable,
 	"Save/restore state on power down: 1 = never, 2 = self-hosted");
 
-/* The number of ETMv4 currently registered */
-static int etm4_count;
 static struct etmv4_drvdata *etmdrvdata[NR_CPUS];
 static void etm4_set_default_config(struct etmv4_config *config);
 static int etm4_set_event_filters(struct etmv4_drvdata *drvdata,
@@ -75,8 +72,9 @@ static void etm4_os_lock(struct etmv4_drvdata *drvdata)
 
 static bool etm4_arch_supported(u8 arch)
 {
-	switch (arch) {
-	case ETM_ARCH_MAJOR_V4:
+	/* Mask out the minor version number */
+	switch (arch & 0xf0) {
+	case ETM_ARCH_V4:
 		break;
 	default:
 		return false;
@@ -191,14 +189,12 @@ static int etm4_enable_hw(struct etmv4_drvdata *drvdata)
 	writel_relaxed(config->vmid_mask0, drvdata->base + TRCVMIDCCTLR0);
 	writel_relaxed(config->vmid_mask1, drvdata->base + TRCVMIDCCTLR1);
 
-	if (!drvdata->tupwr_disable) {
-		/*
-		 * Request to keep the trace unit powered and also
-		 * emulation of powerdown
-		 */
-		writel_relaxed(readl_relaxed(drvdata->base + TRCPDCR)
-				| TRCPDCR_PU, drvdata->base + TRCPDCR);
-	}
+	/*
+	 * Request to keep the trace unit powered and also
+	 * emulation of powerdown
+	 */
+	writel_relaxed(readl_relaxed(drvdata->base + TRCPDCR) | TRCPDCR_PU,
+		       drvdata->base + TRCPDCR);
 
 	/* Enable the trace unit */
 	writel_relaxed(1, drvdata->base + TRCPRGCTLR);
@@ -469,12 +465,10 @@ static void etm4_disable_hw(void *info)
 
 	CS_UNLOCK(drvdata->base);
 
-	if (!drvdata->tupwr_disable) {
-		/* power can be removed from the trace unit now */
-		control = readl_relaxed(drvdata->base + TRCPDCR);
-		control &= ~TRCPDCR_PU;
-		writel_relaxed(control, drvdata->base + TRCPDCR);
-	}
+	/* power can be removed from the trace unit now */
+	control = readl_relaxed(drvdata->base + TRCPDCR);
+	control &= ~TRCPDCR_PU;
+	writel_relaxed(control, drvdata->base + TRCPDCR);
 
 	control = readl_relaxed(drvdata->base + TRCPRGCTLR);
 
@@ -647,7 +641,7 @@ static void etm4_init_arch_data(void *info)
 	 * TRCARCHMIN, bits[7:4] architecture the minor version number
 	 * TRCARCHMAJ, bits[11:8] architecture major versin number
 	 */
-	drvdata->arch = BMVAL(etmidr1, 8, 11);
+	drvdata->arch = BMVAL(etmidr1, 4, 11);
 
 	/* maximum size of resources */
 	etmidr2 = readl_relaxed(drvdata->base + TRCIDR2);
@@ -693,8 +687,8 @@ static void etm4_init_arch_data(void *info)
 	else
 		drvdata->sysstall = false;
 
-	/* NUMPROC, bits[13:12, 30:28] the number of PEs available for trace */
-	drvdata->nr_pe = (BMVAL(etmidr3, 12, 13) << 3) | BMVAL(etmidr3, 28, 30);
+	/* NUMPROC, bits[30:28] the number of PEs available for tracing */
+	drvdata->nr_pe = BMVAL(etmidr3, 28, 30);
 
 	/* NOOVERFLOW, bit[31] is trace overflow prevention supported */
 	if (BMVAL(etmidr3, 31, 31))
@@ -1373,28 +1367,25 @@ static struct notifier_block etm4_cpu_pm_nb = {
 	.notifier_call = etm4_cpu_pm_notify,
 };
 
-/* Setup PM. Called with cpus locked. Deals with error conditions and counts */
-static int etm4_pm_setup_cpuslocked(void)
+/* Setup PM. Deals with error conditions and counts */
+static int __init etm4_pm_setup(void)
 {
 	int ret;
 
-	if (etm4_count++)
-		return 0;
-
 	ret = cpu_pm_register_notifier(&etm4_cpu_pm_nb);
 	if (ret)
-		goto reduce_count;
+		return ret;
 
-	ret = cpuhp_setup_state_nocalls_cpuslocked(CPUHP_AP_ARM_CORESIGHT_STARTING,
-						   "arm/coresight4:starting",
-						   etm4_starting_cpu, etm4_dying_cpu);
+	ret = cpuhp_setup_state_nocalls(CPUHP_AP_ARM_CORESIGHT_STARTING,
+					"arm/coresight4:starting",
+					etm4_starting_cpu, etm4_dying_cpu);
 
 	if (ret)
 		goto unregister_notifier;
 
-	ret = cpuhp_setup_state_nocalls_cpuslocked(CPUHP_AP_ONLINE_DYN,
-						   "arm/coresight4:online",
-						   etm4_online_cpu, NULL);
+	ret = cpuhp_setup_state_nocalls(CPUHP_AP_ONLINE_DYN,
+					"arm/coresight4:online",
+					etm4_online_cpu, NULL);
 
 	/* HP dyn state ID returned in ret on success */
 	if (ret > 0) {
@@ -1403,21 +1394,15 @@ static int etm4_pm_setup_cpuslocked(void)
 	}
 
 	/* failed dyn state - remove others */
-	cpuhp_remove_state_nocalls_cpuslocked(CPUHP_AP_ARM_CORESIGHT_STARTING);
+	cpuhp_remove_state_nocalls(CPUHP_AP_ARM_CORESIGHT_STARTING);
 
 unregister_notifier:
 	cpu_pm_unregister_notifier(&etm4_cpu_pm_nb);
-
-reduce_count:
-	--etm4_count;
 	return ret;
 }
 
-static void etm4_pm_clear(void)
+static void __init etm4_pm_clear(void)
 {
-	if (--etm4_count != 0)
-		return;
-
 	cpu_pm_unregister_notifier(&etm4_cpu_pm_nb);
 	cpuhp_remove_state_nocalls(CPUHP_AP_ARM_CORESIGHT_STARTING);
 	if (hp_online) {
@@ -1471,41 +1456,18 @@ static int etm4_probe(struct amba_device *adev, const struct amba_id *id)
 
 	spin_lock_init(&drvdata->spinlock);
 
-	drvdata->cpu = pdata ? pdata->cpu : -ENODEV;
-	if (drvdata->cpu == -ENODEV) {
-		dev_info(dev, "CPU not available\n");
-		return -ENODEV;
-	}
+	drvdata->cpu = pdata ? pdata->cpu : 0;
 
-	cpus_read_lock();
-	ret = smp_call_function_single(drvdata->cpu,
-					etm4_init_arch_data, drvdata, 1);
-	if (ret) {
+	etmdrvdata[drvdata->cpu] = drvdata;
+
+	if (smp_call_function_single(drvdata->cpu,
+				etm4_init_arch_data,  drvdata, 1))
 		dev_err(dev, "ETM arch init failed\n");
-		cpus_read_unlock();
-		return ret;
-	} else if (!etm4_arch_supported(drvdata->arch)) {
-		cpus_read_unlock();
+
+	if (etm4_arch_supported(drvdata->arch) == false) {
 		ret = -EINVAL;
 		goto err_arch_supported;
 	}
-	if (!etm4_count++) {
-		cpuhp_setup_state_nocalls_cpuslocked(CPUHP_AP_ARM_CORESIGHT_STARTING,
-						     "arm/coresight4:starting",
-						     etm4_starting_cpu, etm4_dying_cpu);
-		ret = cpuhp_setup_state_nocalls_cpuslocked(CPUHP_AP_ONLINE_DYN,
-							   "arm/coresight4:online",
-							   etm4_online_cpu, NULL);
-		if (ret < 0)
-			goto err_arch_supported;
-		hp_online = ret;
-
-		ret = etm4_pm_setup_cpuslocked();
-		if (ret)
-			goto err_arch_supported;
-	}
-
-	cpus_read_unlock();
 
 	etm4_init_trace_id(drvdata);
 	etm4_set_default(&drvdata->config);
@@ -1529,15 +1491,8 @@ static int etm4_probe(struct amba_device *adev, const struct amba_id *id)
 	}
 
 	pm_runtime_put(&adev->dev);
-	etmdrvdata[drvdata->cpu] = drvdata;
 	dev_info(dev, "CPU%d: ETM v%d.%d initialized\n",
 		 drvdata->cpu, drvdata->arch >> 4, drvdata->arch & 0xf);
-
-	drvdata->tupwr_disable = of_property_read_bool(drvdata->dev->of_node,
-				"qcom,tupwr-disable");
-
-	dev_info(dev, "CPU%d: %s initialized\n",
-			drvdata->cpu, (char *)id->data);
 
 	if (boot_enable) {
 		coresight_enable(drvdata->csdev);
@@ -1548,7 +1503,6 @@ static int etm4_probe(struct amba_device *adev, const struct amba_id *id)
 
 err_arch_supported:
 	etmdrvdata[drvdata->cpu] = NULL;
-	etm4_pm_clear();
 	return ret;
 }
 
@@ -1575,4 +1529,23 @@ static struct amba_driver etm4x_driver = {
 	.probe		= etm4_probe,
 	.id_table	= etm4_ids,
 };
-builtin_amba_driver(etm4x_driver);
+
+static int __init etm4x_init(void)
+{
+	int ret;
+
+	ret = etm4_pm_setup();
+
+	/* etm4_pm_setup() does its own cleanup - exit on error */
+	if (ret)
+		return ret;
+
+	ret = amba_driver_register(&etm4x_driver);
+	if (ret) {
+		pr_err("Error registering etm4x driver\n");
+		etm4_pm_clear();
+	}
+
+	return ret;
+}
+device_initcall(etm4x_init);
