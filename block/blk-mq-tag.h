@@ -19,7 +19,6 @@ struct blk_mq_tags {
 	struct request **rqs;
 	struct request **static_rqs;
 	struct list_head page_list;
-};
 
 /*
  * Extended tag address space map. This was needed
@@ -35,6 +34,7 @@ struct ext_blk_mq_tags {
 	  */
 	spinlock_t lock;
 };
+
 
 
 extern struct blk_mq_tags *blk_mq_init_tags(unsigned int nr_tags, unsigned int reserved_tags, int node, int alloc_policy);
