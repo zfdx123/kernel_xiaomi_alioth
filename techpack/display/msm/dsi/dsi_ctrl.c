@@ -1539,7 +1539,7 @@ static void dsi_ctrl_validate_msg_flags(struct dsi_ctrl *dsi_ctrl,
  * @dsi_ctrl:                   DSI controller handle.
  * @flags:                      Modifiers
  */
-void dsi_ctrl_clear_slave_dma_status(struct dsi_ctrl *dsi_ctrl, u32 flags)
+int dsi_ctrl_clear_slave_dma_status(struct dsi_ctrl *dsi_ctrl, u32 flags)
 {
 	struct dsi_ctrl_hw_ops dsi_hw_ops;
 	u32 status = 0;
