@@ -428,7 +428,7 @@ static void qrtr_node_rx_work(struct work_struct *work)
  *
  * The specified endpoint must have the xmit function pointer set on call.
  */
-int qrtr_endpoint_register(struct qrtr_endpoint *ep, unsigned int net_id, unsigned int nid)
+int qrtr_endpoint_register(struct qrtr_endpoint *ep, unsigned int net_id, bool rt)
 {
 	struct qrtr_node *node;
 
@@ -445,8 +445,6 @@ int qrtr_endpoint_register(struct qrtr_endpoint *ep, unsigned int net_id, unsign
 	skb_queue_head_init(&node->rx_queue);
 	node->nid = QRTR_EP_NID_AUTO;
 	node->ep = ep;
-
-	qrtr_node_assign(node, nid);
 
 	mutex_lock(&qrtr_node_lock);
 	list_add(&node->item, &qrtr_all_nodes);
