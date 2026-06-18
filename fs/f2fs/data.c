@@ -3960,7 +3960,7 @@ static int check_swap_activate(struct swap_info_struct *sis,
 
 		cond_resched();
 
-		first_block = bmap(inode, probe_block);
+		first_block = bmap(inode, &probe_block);
 		if (first_block == 0)
 			goto bad_bmap;
 
@@ -3976,7 +3976,8 @@ static int check_swap_activate(struct swap_info_struct *sis,
 					block_in_page++) {
 			sector_t block;
 
-			block = bmap(inode, probe_block + block_in_page);
+		sector_t probe_block2 = probe_block + block_in_page;
+			block = bmap(inode, &probe_block2);
 			if (block == 0)
 				goto bad_bmap;
 			if (block != first_block + block_in_page) {

@@ -62,29 +62,6 @@
 #define F2FS_TRIM_FILE_ZEROOUT		0x2	/* zero out */
 #define F2FS_TRIM_FILE_MASK		0x3
 
-struct f2fs_gc_range {
-	__u32 sync;
-	__u64 start;
-	__u64 len;
-};
-
-struct f2fs_defragment {
-	__u64 start;
-	__u64 len;
-};
-
-struct f2fs_move_range {
-	__u32 dst_fd;		/* destination fd */
-	__u64 pos_in;		/* start position in src_fd */
-	__u64 pos_out;		/* start position in dst_fd */
-	__u64 len;		/* size to move */
-};
-
-struct f2fs_flush_device {
-	__u32 dev_num;		/* device number to flush */
-	__u32 segments;		/* # of segments to flush */
-};
-
 struct f2fs_sectrim_range {
 	__u64 start;
 	__u64 len;

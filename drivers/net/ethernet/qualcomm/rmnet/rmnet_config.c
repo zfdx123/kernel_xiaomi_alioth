@@ -29,7 +29,7 @@ static const struct nla_policy rmnet_policy[IFLA_RMNET_MAX + 1] = {
 	[IFLA_RMNET_FLAGS]	= { .len = sizeof(struct ifla_rmnet_flags) },
 };
 
-static int rmnet_is_real_dev_registered(const struct net_device *real_dev)
+int rmnet_is_real_dev_registered(const struct net_device *real_dev)
 {
 	return rcu_access_pointer(real_dev->rx_handler) == rmnet_rx_handler;
 }
@@ -100,7 +100,7 @@ static void rmnet_unregister_bridge(struct rmnet_port *port)
 	if (port->rmnet_mode != RMNET_EPMODE_BRIDGE)
 		return;
 
-	rmnet_dev = port->rmnet_dev;
+	rmnet_dev = port->dev;
 	if (!port->nr_rmnet_devs) {
 		/* bridge device */
 		real_dev = port->bridge_ep;
@@ -165,7 +165,7 @@ static int rmnet_newlink(struct net *src_net, struct net_device *dev,
 		goto err2;
 
 	port->rmnet_mode = mode;
-	port->rmnet_dev = dev;
+	port->dev = dev;
 
 	hlist_add_head_rcu(&ep->hlnode, &port->muxed_ep[mux_id]);
 
@@ -450,7 +450,7 @@ int rmnet_add_bridge(struct net_device *rmnet_dev,
 	slave_port = rmnet_get_port_rtnl(slave_dev);
 	slave_port->rmnet_mode = RMNET_EPMODE_BRIDGE;
 	slave_port->bridge_ep = real_dev;
-	slave_port->rmnet_dev = rmnet_dev;
+	slave_port->dev = rmnet_dev;
 
 	port->rmnet_mode = RMNET_EPMODE_BRIDGE;
 	port->bridge_ep = slave_dev;

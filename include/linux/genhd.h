@@ -776,4 +776,6 @@ static inline dev_t blk_lookup_devt(const char *name, int partno)
 }
 #endif /* CONFIG_BLOCK */
 
+void part_round_stats(struct request_queue *q, int cpu, struct hd_struct *part);
+
 #endif /* _LINUX_GENHD_H */

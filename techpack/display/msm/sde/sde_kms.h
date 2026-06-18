@@ -673,4 +673,5 @@ int sde_kms_handle_recovery(struct drm_encoder *encoder);
  */
 void sde_kms_update_pm_qos_irq_request(struct sde_kms *sde_kms,
 	 bool enable, bool skip_lock);
+void sde_kms_kickoff_count(struct sde_kms *sde_kms);
 #endif /* __sde_kms_H__ */

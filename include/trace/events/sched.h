@@ -5,7 +5,6 @@
 #if !defined(_TRACE_SCHED_H) || defined(TRACE_HEADER_MULTI_READ)
 #define _TRACE_SCHED_H
 
-#include <linux/kthread.h>
 #include <linux/sched/numa_balancing.h>
 #include <linux/tracepoint.h>
 #include <linux/binfmts.h>
@@ -33,6 +32,25 @@ TRACE_EVENT(sched_kthread_stop,
 	TP_printk("comm=%s pid=%d", __entry->comm, __entry->pid)
 );
 
+TRACE_EVENT(sched_setaffinity,
+
+	TP_PROTO(pid_t pid, const struct cpumask *in_mask),
+
+	TP_ARGS(pid, in_mask),
+
+	TP_STRUCT__entry(
+		__field(pid_t, pid)
+		__field(unsigned long, cpu_mask)
+	),
+
+	TP_fast_assign(
+		__entry->pid	     = pid;
+		__entry->cpu_mask  = cpumask_bits(in_mask)[0];
+	),
+
+	TP_printk(" pid=%d affine=%#lx", __entry->pid, __entry->cpu_mask)
+);
+
 /*
  * Tracepoint for the return value of the kthread stopping:
  */
@@ -51,89 +69,6 @@ TRACE_EVENT(sched_kthread_stop_ret,
 	),
 
 	TP_printk("ret=%d", __entry->ret)
-);
-
-/**
- * sched_kthread_work_queue_work - called when a work gets queued
- * @worker:	pointer to the kthread_worker
- * @work:	pointer to struct kthread_work
- *
- * This event occurs when a work is queued immediately or once a
- * delayed work is actually queued (ie: once the delay has been
- * reached).
- */
-TRACE_EVENT(sched_kthread_work_queue_work,
-
-	TP_PROTO(struct kthread_worker *worker,
-		 struct kthread_work *work),
-
-	TP_ARGS(worker, work),
-
-	TP_STRUCT__entry(
-		__field( void *,	work	)
-		__field( void *,	function)
-		__field( void *,	worker)
-	),
-
-	TP_fast_assign(
-		__entry->work		= work;
-		__entry->function	= work->func;
-		__entry->worker		= worker;
-	),
-
-	TP_printk("work struct=%p function=%ps worker=%p",
-		  __entry->work, __entry->function, __entry->worker)
-);
-
-/**
- * sched_kthread_work_execute_start - called immediately before the work callback
- * @work:	pointer to struct kthread_work
- *
- * Allows to track kthread work execution.
- */
-TRACE_EVENT(sched_kthread_work_execute_start,
-
-	TP_PROTO(struct kthread_work *work),
-
-	TP_ARGS(work),
-
-	TP_STRUCT__entry(
-		__field( void *,	work	)
-		__field( void *,	function)
-	),
-
-	TP_fast_assign(
-		__entry->work		= work;
-		__entry->function	= work->func;
-	),
-
-	TP_printk("work struct %p: function %ps", __entry->work, __entry->function)
-);
-
-/**
- * sched_kthread_work_execute_end - called immediately after the work callback
- * @work:	pointer to struct work_struct
- * @function:   pointer to worker function
- *
- * Allows to track workqueue execution.
- */
-TRACE_EVENT(sched_kthread_work_execute_end,
-
-	TP_PROTO(struct kthread_work *work, kthread_work_func_t function),
-
-	TP_ARGS(work, function),
-
-	TP_STRUCT__entry(
-		__field( void *,	work	)
-		__field( void *,	function)
-	),
-
-	TP_fast_assign(
-		__entry->work		= work;
-		__entry->function	= function;
-	),
-
-	TP_printk("work struct %p: function %ps", __entry->work, __entry->function)
 );
 
 /*
@@ -776,6 +711,45 @@ DECLARE_EVENT_CLASS(sched_stat_runtime,
 DEFINE_EVENT(sched_stat_runtime, sched_stat_runtime,
 	     TP_PROTO(struct task_struct *tsk, u64 runtime, u64 vruntime),
 	     TP_ARGS(tsk, runtime, vruntime));
+
+/* debug sched event of EAS for tracer: nop  */
+TRACE_EVENT(sched_debug_einfo,
+		TP_PROTO(struct task_struct *tsk,const char *  flag1,const char *  flag2,unsigned int param1, unsigned int param2,u64 se_vr, u64 en_vr,u64 cfq_min_vr),
+		TP_ARGS(tsk,flag1,flag2,param1,param2, se_vr,en_vr,cfq_min_vr),
+		TP_STRUCT__entry(
+			__array( char,	comm,	TASK_COMM_LEN	)
+			__field( pid_t,	pid			)
+			__array( char,	flag1,	TASK_COMM_LEN)
+			__array( char,	flag2,	TASK_COMM_LEN)
+			__field(unsigned int, param1    )
+			__field( unsigned int,	param2)
+			__field( u64,	se_vr )
+			__field( u64,	en_vr )
+			__field( u64,	cfq_min_vr )
+			),
+
+		TP_fast_assign(
+			memcpy(__entry->comm, tsk->comm, TASK_COMM_LEN);
+			__entry->pid		= tsk->pid;
+			memcpy(__entry->flag1, flag1, TASK_COMM_LEN);
+			memcpy(__entry->flag2, flag2, TASK_COMM_LEN);
+			__entry->param1 = param1;
+			__entry->param2 = param2;
+			__entry->se_vr  = se_vr;
+			__entry->en_vr = en_vr;
+			__entry->cfq_min_vr = cfq_min_vr;
+			),
+
+		TP_printk("comm=%s pid=%d,  %s=%d  %s=%d ,  sv=%Lu [ns] ev=%Lu [ns] cv=%Lu [ns]", __entry->comm, __entry->pid,
+				__entry->flag1,
+				__entry->param1,
+				__entry->flag2,
+				__entry->param2,
+				(unsigned long long)__entry->se_vr,
+				(unsigned long long)__entry->en_vr,
+				(unsigned long long)__entry->cfq_min_vr)
+		);
+
 
 /*
  * Tracepoint for showing priority inheritance modifying a tasks

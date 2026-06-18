@@ -1,7 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Copyright (c) 2016-2020, The Linux Foundation. All rights reserved.
- * Copyright (C) 2021 XiaoMi, Inc.
  */
 
 #ifndef _SDE_CONNECTOR_H_
@@ -19,6 +18,7 @@
 
 #define SDE_CONNECTOR_NAME_SIZE	16
 #define SDE_CONNECTOR_DHDR_MEMPOOL_MAX_SIZE	SZ_32
+#define MAX_CMD_RECEIVE_SIZE       256
 
 struct sde_connector;
 struct sde_connector_state;
@@ -264,6 +264,18 @@ struct sde_connector_ops {
 	int (*cmd_transfer)(struct drm_connector *connector,
 			void *display, const char *cmd_buf,
 			u32 cmd_buf_len);
+	/**
+	 * cmd_receive - Receive the response from the connected display panel
+	 * @display: Pointer to private display handle
+	 * @cmd_buf: Command buffer
+	 * @cmd_buf_len: Command buffer length in bytes
+	 * @recv_buf: rx buffer
+	 * @recv_buf_len: rx buffer length
+	 * Returns: number of bytes read, if successful, negative for failure
+	 */
+
+	int (*cmd_receive)(void *display, const char *cmd_buf,
+			   u32 cmd_buf_len, u8 *recv_buf, u32 recv_buf_len);
 
 	/**
 	 * config_hdr - configure HDR
@@ -395,8 +407,8 @@ enum mi_dimlayer_type {
 	MI_DIMLAYER_FOD_HBM_OVERLAY = 0x1,
 	MI_DIMLAYER_FOD_ICON = 0x2,
 	MI_DIMLAYER_AOD = 0x4,
-	MI_FOD_UNLOCK_SUCCESS = 0x8,
-	MI_LAYER_FOD_ANIM = 0x10,
+	MI_LAYER_FOD_ANIM = 0x8,
+	MI_FOD_UNLOCK_SUCCESS = 0x10,
 	MI_DIMLAYER_MAX,
 };
 
@@ -451,6 +463,8 @@ struct mi_dimlayer_state
  * @hdr_capable: external hdr support present
  * @core_clk_rate: MDP core clk rate used for dynamic HDR packet calculation
  * @mi_dimlayer_state: mi dimlayer state
+ * @cmd_rx_buf: the return buffer of response of command transfer
+ * @rx_len: the length of dcs command received buffer
  */
 struct sde_connector {
 	struct drm_connector base;
@@ -508,6 +522,9 @@ struct sde_connector {
 
 	struct mi_dimlayer_state mi_dimlayer_state;
 	u32 fod_frame_count;
+
+	u8 cmd_rx_buf[MAX_CMD_RECEIVE_SIZE];
+	int rx_len;
 };
 
 /**
@@ -1007,6 +1024,10 @@ void sde_connector_mi_update_dimlayer_state(struct drm_connector *connector,
 void sde_connector_mi_get_current_backlight(struct drm_connector *connector, uint32_t *brightness);
 
 void sde_connector_mi_get_current_alpha(struct drm_connector *connector, uint32_t brightness, uint32_t *alpha);
+
+void sde_connector_dc_get_current_backlight(struct drm_connector *connector, uint32_t *brightness);
+
+void sde_connector_dc_get_current_alpha(struct drm_connector *connector, uint32_t brightness, uint32_t *alpha);
 
 void sde_connector_fod_notify(struct drm_connector *connector);
 

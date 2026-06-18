@@ -865,6 +865,13 @@ struct dsi_ctrl_hw_ops {
 	 * @cmd_mode:»       Boolean to indicate command mode operation.
 	 */
 	u32 (*log_line_count)(struct dsi_ctrl_hw *ctrl, bool cmd_mode);
+
+	u32 (*poll_slave_dma_status)(struct dsi_ctrl_hw *ctrl);
+
+	bool (*vid_engine_busy)(struct dsi_ctrl_hw *ctrl);
+
+	void (*init_cmddma_trig_ctrl)(struct dsi_ctrl_hw *ctrl,
+			const struct dsi_cmddma_trig_ctrl *cfg);
 };
 
 /*

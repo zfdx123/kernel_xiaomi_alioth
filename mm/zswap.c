@@ -219,7 +219,7 @@ static const struct zpool_ops zswap_zpool_ops = {
 
 static bool zswap_is_full(void)
 {
-	return totalram_pages() * zswap_max_pool_percent / 100 <
+	return totalram_pages * zswap_max_pool_percent / 100 <
 			DIV_ROUND_UP(zswap_pool_total_size, PAGE_SIZE);
 }
 

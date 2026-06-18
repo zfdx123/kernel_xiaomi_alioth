@@ -2263,4 +2263,10 @@ void clean_acked_data_disable(struct inet_connection_sock *icsk);
 
 #endif
 
+/* Extract timestamp from skb for BBRv2 */
+static inline u32 tcp_skb_timestamp_us(const struct sk_buff *skb)
+{
+	return div_u64(skb->skb_mstamp, USEC_PER_SEC / TCP_TS_HZ);
+}
+
 #endif	/* _TCP_H */
