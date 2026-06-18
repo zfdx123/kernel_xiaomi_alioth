@@ -428,7 +428,7 @@ static void qrtr_node_rx_work(struct work_struct *work)
  *
  * The specified endpoint must have the xmit function pointer set on call.
  */
-int qrtr_endpoint_register(struct qrtr_endpoint *ep, unsigned int nid)
+int qrtr_endpoint_register(struct qrtr_endpoint *ep, unsigned int net_id, unsigned int nid)
 {
 	struct qrtr_node *node;
 
