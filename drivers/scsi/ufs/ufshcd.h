@@ -1633,4 +1633,6 @@ static inline unsigned int ufshcd_vops_get_user_cap_mode(struct ufs_hba *hba)
 		return hba->var->vops->get_user_cap_mode(hba);
 	return 0;
 }
+n#define ufs_spin_lock_irqsave(lock, flags) spin_lock_irqsave(lock, flags)
+#define ufs_spin_unlock_irqrestore(lock, flags) spin_unlock_irqrestore(lock, flags)
 #endif /* End of Header */
