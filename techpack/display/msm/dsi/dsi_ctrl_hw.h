@@ -871,7 +871,7 @@ struct dsi_ctrl_hw_ops {
 	bool (*vid_engine_busy)(struct dsi_ctrl_hw *ctrl);
 
 	void (*init_cmddma_trig_ctrl)(struct dsi_ctrl_hw *ctrl,
-			const struct dsi_cmddma_trig_ctrl *cfg);
+			struct dsi_host_common_cfg *cfg);
 };
 
 /*
