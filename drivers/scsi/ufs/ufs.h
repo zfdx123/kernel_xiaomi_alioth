@@ -650,4 +650,6 @@ static inline bool ufs_is_valid_unit_desc_lun(u8 lun)
 	return lun == UFS_UPIU_RPMB_WLUN || (lun < UFS_UPIU_MAX_GENERAL_LUN);
 }
 
+#define UFS_DEVICE_QUIRK_PA_SYNCLENGTH (1 << 19)
+
 #endif /* End of Header */
