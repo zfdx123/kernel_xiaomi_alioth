@@ -504,6 +504,36 @@ struct utp_upiu_rsp {
 };
 
 /**
+ * struct utp_upiu_task_req - Task request UPIU structure
+ * @header - UPIU header structure DW0 to DW-2
+ * @input_param1: Input parameter 1 DW-3
+ * @input_param2: Input parameter 2 DW-4
+ * @input_param3: Input parameter 3 DW-5
+ * @reserved: Reserved double words DW-6 to DW-7
+ */
+struct utp_upiu_task_req {
+	struct utp_upiu_header header;
+	__be32 input_param1;
+	__be32 input_param2;
+	__be32 input_param3;
+	__be32 reserved[2];
+};
+
+/**
+ * struct utp_upiu_task_rsp - Task Management Response UPIU structure
+ * @header: UPIU header structure DW0-DW-2
+ * @output_param1: Ouput parameter 1 DW3
+ * @output_param2: Output parameter 2 DW4
+ * @reserved: Reserved double words DW-5 to DW-7
+ */
+struct utp_upiu_task_rsp {
+	struct utp_upiu_header header;
+	__be32 output_param1;
+	__be32 output_param2;
+	__be32 reserved[3];
+};
+
+/**
  * struct ufs_query_req - parameters for building a query request
  * @query_func: UPIU header query function
  * @upiu_req: the query request data
@@ -579,6 +609,7 @@ struct ufs_dev_info {
 	u8	i_product_name;
 	u16	w_spec_version;
 	u32	d_ext_ufs_feature_sup;
+	u8	b_wb_buffer_type;
 
 	/* query flags */
 	bool f_power_on_wp_en;
@@ -592,6 +623,8 @@ struct ufs_dev_info {
 	unsigned int quirks;
 
 	bool keep_vcc_on;
+
+	bool wb_config_lun;
 };
 
 #define MAX_MODEL_LEN 16
