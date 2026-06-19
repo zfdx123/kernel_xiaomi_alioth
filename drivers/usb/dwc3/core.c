@@ -40,6 +40,20 @@
 
 #define DWC3_DEFAULT_AUTOSUSPEND_DELAY	5000 /* ms */
 
+void dwc3_usb3_phy_suspend(struct dwc3 *dwc, int suspend)
+{
+	u32 reg;
+
+	reg = dwc3_readl(dwc->regs, DWC3_GUSB3PIPECTL(0));
+
+	if (suspend)
+		reg |= DWC3_GUSB3PIPECTL_SUSPHY;
+	else
+		reg &= ~DWC3_GUSB3PIPECTL_SUSPHY;
+
+	dwc3_writel(dwc->regs, DWC3_GUSB3PIPECTL(0), reg);
+}
+
 /**
  * dwc3_get_dr_mode - Validates and sets dr_mode
  * @dwc: pointer to our context structure
@@ -109,6 +123,35 @@ void dwc3_set_prtcap(struct dwc3 *dwc, u32 mode)
 	dwc3_writel(dwc->regs, DWC3_GCTL, reg);
 
 	dwc->current_dr_role = mode;
+}
+
+void dwc3_en_sleep_mode(struct dwc3 *dwc)
+{
+	u32 reg;
+
+	if (dwc->dis_enblslpm_quirk)
+		return;
+
+	reg = dwc3_readl(dwc->regs, DWC3_GUSB2PHYCFG(0));
+	reg |= DWC3_GUSB2PHYCFG_ENBLSLPM;
+	dwc3_writel(dwc->regs, DWC3_GUSB2PHYCFG(0), reg);
+
+	reg = dwc3_readl(dwc->regs, DWC3_GUCTL1);
+	reg |= DWC3_GUCTL1_L1_SUSP_THRLD_EN_FOR_HOST;
+	dwc3_writel(dwc->regs, DWC3_GUCTL1, reg);
+}
+
+void dwc3_dis_sleep_mode(struct dwc3 *dwc)
+{
+	u32 reg;
+
+	reg = dwc3_readl(dwc->regs, DWC3_GUSB2PHYCFG(0));
+	reg &= ~DWC3_GUSB2PHYCFG_ENBLSLPM;
+	dwc3_writel(dwc->regs, DWC3_GUSB2PHYCFG(0), reg);
+
+	reg = dwc3_readl(dwc->regs, DWC3_GUCTL1);
+	reg &= ~DWC3_GUCTL1_L1_SUSP_THRLD_EN_FOR_HOST;
+	dwc3_writel(dwc->regs, DWC3_GUCTL1, reg);
 }
 
 static void __dwc3_set_mode(struct work_struct *work)
@@ -916,7 +959,7 @@ static void dwc3_set_incr_burst_type(struct dwc3 *dwc)
  *
  * Returns 0 on success otherwise negative errno.
  */
-static int dwc3_core_init(struct dwc3 *dwc)
+int dwc3_core_init(struct dwc3 *dwc)
 {
 	u32			reg;
 	int			ret;
@@ -1227,6 +1270,28 @@ static void dwc3_core_exit_mode(struct dwc3 *dwc)
 	/* de-assert DRVVBUS for HOST and OTG mode */
 	dwc3_set_prtcap(dwc, DWC3_GCTL_PRTCAP_DEVICE);
 }
+
+static void (*notify_event)(struct dwc3 *, unsigned int, unsigned int);
+
+void dwc3_set_notifier(void (*notify)(struct dwc3 *, unsigned int,
+				      unsigned int))
+{
+	notify_event = notify;
+}
+EXPORT_SYMBOL(dwc3_set_notifier);
+
+int dwc3_notify_event(struct dwc3 *dwc, unsigned int event, unsigned int value)
+{
+	int ret = 0;
+
+	if (notify_event)
+		notify_event(dwc, event, value);
+	else
+		ret = -ENODEV;
+
+	return ret;
+}
+EXPORT_SYMBOL(dwc3_notify_event);
 
 static void dwc3_get_properties(struct dwc3 *dwc)
 {

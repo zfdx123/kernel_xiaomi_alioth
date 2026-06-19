@@ -21,6 +21,8 @@
 #include "rmnet_handlers.h"
 #include "rmnet_vnd.h"
 #include "rmnet_private.h"
+#include <soc/qcom/rmnet_qmi.h>
+#include <soc/qcom/qmi_rmnet.h>
 
 /* Local Definitions and Declarations */
 
@@ -396,13 +398,15 @@ struct rtnl_link_ops rmnet_link_ops __read_mostly = {
 	.fill_info	= rmnet_fill_info,
 };
 
-struct rmnet_port *rmnet_get_port_rcu(struct net_device *real_dev)
+/* Needs either rcu_read_lock() or rtnl lock */
+struct rmnet_port *rmnet_get_port(struct net_device *real_dev)
 {
 	if (rmnet_is_real_dev_registered(real_dev))
-		return rcu_dereference_bh(real_dev->rx_handler_data);
+		return rcu_dereference_rtnl(real_dev->rx_handler_data);
 	else
 		return NULL;
 }
+EXPORT_SYMBOL(rmnet_get_port);
 
 struct rmnet_endpoint *rmnet_get_endpoint(struct rmnet_port *port, u8 mux_id)
 {
@@ -415,6 +419,188 @@ struct rmnet_endpoint *rmnet_get_endpoint(struct rmnet_port *port, u8 mux_id)
 
 	return NULL;
 }
+EXPORT_SYMBOL(rmnet_get_endpoint);
+
+#ifdef CONFIG_QCOM_QMI_RMNET
+void *rmnet_get_qmi_pt(void *port)
+{
+	if (port)
+		return ((struct rmnet_port *)port)->qmi_info;
+
+	return NULL;
+}
+EXPORT_SYMBOL(rmnet_get_qmi_pt);
+
+void *rmnet_get_qos_pt(struct net_device *dev)
+{
+	struct rmnet_priv *priv;
+
+	if (dev) {
+		priv = netdev_priv(dev);
+		return rcu_dereference(priv->qos_info);
+	}
+
+	return NULL;
+}
+EXPORT_SYMBOL(rmnet_get_qos_pt);
+
+void *rmnet_get_rmnet_port(struct net_device *dev)
+{
+	struct rmnet_priv *priv;
+
+	if (dev) {
+		priv = netdev_priv(dev);
+		return (void *)rmnet_get_port(priv->real_dev);
+	}
+
+	return NULL;
+}
+EXPORT_SYMBOL(rmnet_get_rmnet_port);
+
+struct net_device *rmnet_get_rmnet_dev(void *port, u8 mux_id)
+{
+	struct rmnet_endpoint *ep;
+
+	if (port) {
+		ep = rmnet_get_endpoint((struct rmnet_port *)port, mux_id);
+		if (ep)
+			return ep->egress_dev;
+	}
+
+	return NULL;
+}
+EXPORT_SYMBOL(rmnet_get_rmnet_dev);
+
+void rmnet_reset_qmi_pt(void *port)
+{
+	if (port)
+		((struct rmnet_port *)port)->qmi_info = NULL;
+}
+EXPORT_SYMBOL(rmnet_reset_qmi_pt);
+
+void rmnet_init_qmi_pt(void *port, void *qmi)
+{
+	if (port)
+		((struct rmnet_port *)port)->qmi_info = qmi;
+}
+EXPORT_SYMBOL(rmnet_init_qmi_pt);
+
+void rmnet_get_packets(void *port, u64 *rx, u64 *tx)
+{
+	struct rmnet_priv *priv;
+	struct rmnet_pcpu_stats *ps;
+	unsigned int cpu, start;
+	struct rmnet_endpoint *ep;
+	unsigned long bkt;
+
+	if (!port || !tx || !rx)
+		return;
+
+	*tx = 0;
+	*rx = 0;
+	rcu_read_lock();
+	hash_for_each(((struct rmnet_port *)port)->muxed_ep, bkt, ep, hlnode) {
+		priv = netdev_priv(ep->egress_dev);
+		for_each_possible_cpu(cpu) {
+			ps = per_cpu_ptr(priv->pcpu_stats, cpu);
+			do {
+				start = u64_stats_fetch_begin_irq(&ps->syncp);
+				*tx += ps->stats.tx_pkts;
+				*rx += ps->stats.rx_pkts;
+			} while (u64_stats_fetch_retry_irq(&ps->syncp, start));
+		}
+	}
+	rcu_read_unlock();
+}
+EXPORT_SYMBOL(rmnet_get_packets);
+
+void rmnet_set_powersave_format(void *port)
+{
+	if (!port)
+		return;
+
+	((struct rmnet_port *)port)->data_format |= RMNET_INGRESS_FORMAT_PS;
+}
+EXPORT_SYMBOL(rmnet_set_powersave_format);
+
+void rmnet_clear_powersave_format(void *port)
+{
+	if (!port)
+		return;
+
+	((struct rmnet_port *)port)->data_format &= ~RMNET_INGRESS_FORMAT_PS;
+}
+EXPORT_SYMBOL(rmnet_clear_powersave_format);
+
+void rmnet_enable_all_flows(void *port)
+{
+	struct rmnet_endpoint *ep;
+	unsigned long bkt;
+
+	if (unlikely(!port))
+		return;
+
+	rcu_read_lock();
+	hash_for_each_rcu(((struct rmnet_port *)port)->muxed_ep,
+			  bkt, ep, hlnode)
+		qmi_rmnet_enable_all_flows(ep->egress_dev);
+	rcu_read_unlock();
+}
+EXPORT_SYMBOL(rmnet_enable_all_flows);
+
+bool rmnet_all_flows_enabled(void *port)
+{
+	struct rmnet_endpoint *ep;
+	unsigned long bkt;
+	bool ret = true;
+
+	if (unlikely(!port))
+		return true;
+
+	rcu_read_lock();
+	hash_for_each_rcu(((struct rmnet_port *)port)->muxed_ep,
+			  bkt, ep, hlnode) {
+		if (!qmi_rmnet_all_flows_enabled(ep->egress_dev)) {
+			ret = false;
+			goto out;
+		}
+	}
+out:
+	rcu_read_unlock();
+
+	return ret;
+}
+EXPORT_SYMBOL(rmnet_all_flows_enabled);
+
+int rmnet_get_powersave_notif(void *port)
+{
+	if (!port)
+		return 0;
+
+	return ((struct rmnet_port *)port)->data_format & RMNET_FORMAT_PS_NOTIF;
+}
+EXPORT_SYMBOL(rmnet_get_powersave_notif);
+
+struct net_device *rmnet_get_real_dev(void *port)
+{
+	if (port)
+		return ((struct rmnet_port *)port)->dev;
+
+	return NULL;
+}
+EXPORT_SYMBOL(rmnet_get_real_dev);
+
+int rmnet_get_dlmarker_info(void *port)
+{
+	if (!port)
+		return 0;
+
+	return ((struct rmnet_port *)port)->data_format &
+		(RMNET_INGRESS_FORMAT_DL_MARKER_V1 |
+		 RMNET_INGRESS_FORMAT_DL_MARKER_V2);
+}
+EXPORT_SYMBOL(rmnet_get_dlmarker_info);
+#endif
 
 int rmnet_add_bridge(struct net_device *rmnet_dev,
 		     struct net_device *slave_dev,

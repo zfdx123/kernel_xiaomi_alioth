@@ -414,9 +414,15 @@ PYTHON2		= python2
 PYTHON3		= python3
 CHECK		= sparse
 
-# Use the wrapper for the compiler.  This wrapper scans for new
-# warnings and causes the build to stop upon encountering them
+# Use the wrapper for the compiler when it is available.  Some build
+# environments provide REAL_CC from Android build scripts, while local
+# kernel builds rely on the compiler selected above.
+REAL_CC		:= $(if $(REAL_CC),$(REAL_CC),$(CC))
+ifneq ($(wildcard $(srctree)/scripts/gcc-wrapper.py),)
 CC		= $(PYTHON2) $(srctree)/scripts/gcc-wrapper.py $(REAL_CC)
+else
+CC		= $(REAL_CC)
+endif
 
 CHECKFLAGS     := -D__linux__ -Dlinux -D__STDC__ -Dunix -D__unix__ \
 		  -Wbitwise -Wno-return-void -Wno-unknown-attribute $(CF)

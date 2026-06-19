@@ -821,7 +821,7 @@ static int ax88179_set_eee(struct net_device *net, struct ethtool_eee *edata)
 	return ret;
 }
 
-static int ax88179_ioctl(struct net_device *net, struct ifreq *rq, int cmd)
+int ax88179_ioctl(struct net_device *net, struct ifreq *rq, int cmd)
 {
 	struct usbnet *dev = netdev_priv(net);
 	return generic_mii_ioctl(&dev->mii, if_mii(rq), cmd, NULL);
@@ -842,7 +842,7 @@ static const struct ethtool_ops ax88179_ethtool_ops = {
 	.set_link_ksettings	= ax88179_set_link_ksettings,
 };
 
-static void ax88179_set_multicast(struct net_device *net)
+void ax88179_set_multicast(struct net_device *net)
 {
 	struct usbnet *dev = netdev_priv(net);
 	struct ax88179_data *data = (struct ax88179_data *)dev->data;
@@ -939,7 +939,7 @@ static int ax88179_change_mtu(struct net_device *net, int new_mtu)
 	return 0;
 }
 
-static int ax88179_set_mac_addr(struct net_device *net, void *p)
+int ax88179_set_mac_addr(struct net_device *net, void *p)
 {
 	struct usbnet *dev = netdev_priv(net);
 	struct sockaddr *addr = p;
@@ -1697,7 +1697,7 @@ static int ax88179_stop(struct usbnet *dev)
 	return 0;
 }
 
-static const struct driver_info ax88179_info = {
+const struct driver_info ax88179_info = {
 	.description = "ASIX AX88179 USB 3.0 Gigabit Ethernet",
 	.bind = ax88179_bind,
 	.unbind = ax88179_unbind,

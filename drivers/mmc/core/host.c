@@ -157,6 +157,21 @@ out:
 	return err;
 }
 
+/**
+ *	mmc_host_may_gate_card - check if this card may be gated
+ *	@card: card to check
+ */
+bool mmc_host_may_gate_card(struct mmc_card *card)
+{
+	if (!card)
+		return true;
+
+	if (mmc_card_sdio(card) && card->cccr.async_intr_sup)
+		return true;
+
+	return !(card->quirks & MMC_QUIRK_BROKEN_CLK_GATING);
+}
+
 static void mmc_retune_timer(struct timer_list *t)
 {
 	struct mmc_host *host = from_timer(host, t, retune_timer);
