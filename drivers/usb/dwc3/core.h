@@ -711,6 +711,7 @@ struct dwc3_ep {
 
 	unsigned		direction:1;
 	unsigned		stream_capable:1;
+	int			fifo_depth;
 };
 
 enum dwc3_phy {
@@ -1114,6 +1115,8 @@ struct dwc3 {
 #define DWC3_REVISION_IS_DWC31		0x80000000
 #define DWC3_USB31_REVISION_110A	(0x3131302a | DWC3_REVISION_IS_DWC31)
 #define DWC3_USB31_REVISION_120A	(0x3132302a | DWC3_REVISION_IS_DWC31)
+#define DWC3_USB31_REVISION_170A	(0x3137302a | DWC3_REVISION_IS_DWC31)
+#define DWC3_USB31_VER_TYPE_EA06	0x65613036
 
 	enum dwc3_ep0_next	ep0_next_event;
 	enum dwc3_ep0_state	ep0state;
@@ -1190,6 +1193,10 @@ struct dwc3 {
 	u32			xhci_imod_value;
 	int			core_id;
 	unsigned		ignore_wakeup_src_in_hostmode:1;
+	u32			versiontype;
+	unsigned		needs_fifo_resize:1;
+	int			tx_fifo_size;
+	int			last_fifo_depth;
 };
 
 #define INCRX_BURST_MODE 0
