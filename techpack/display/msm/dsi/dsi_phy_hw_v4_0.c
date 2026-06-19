@@ -873,3 +873,97 @@ void dsi_phy_hw_v4_0_set_continuous_clk(struct dsi_phy_hw *phy, bool enable)
 	DSI_W32(phy, DSIPHY_CMN_LANE_CTRL1, reg);
 	wmb(); /* make sure request is set */
 }
+
+void dsi_phy_hw_v4_0_dyn_refresh_trigger_sel(struct dsi_phy_hw *phy,
+		bool is_master)
+{
+	u32 reg;
+
+	/*
+	 * Dynamic refresh will take effect at next mdp flush event.
+	 * This makes sure that any update to frame timings together
+	 * with dfps will take effect in one vsync at next mdp flush.
+	 */
+	if (is_master) {
+		reg = DSI_GEN_R32(phy->dyn_pll_base, DSI_DYN_REFRESH_CTRL);
+		reg |= BIT(17);
+		DSI_GEN_W32(phy->dyn_pll_base, DSI_DYN_REFRESH_CTRL, reg);
+	}
+}
+
+void dsi_phy_hw_v4_0_dyn_refresh_helper(struct dsi_phy_hw *phy, u32 offset)
+{
+	u32 reg;
+
+	/*
+	 * if no offset is mentioned then this means we want to clear
+	 * the dynamic refresh ctrl register which is the last step
+	 * of dynamic refresh sequence.
+	 */
+	if (!offset) {
+		reg = DSI_GEN_R32(phy->dyn_pll_base, DSI_DYN_REFRESH_CTRL);
+		reg &= ~(BIT(0) | BIT(8) | BIT(13) | BIT(16) | BIT(17));
+		DSI_GEN_W32(phy->dyn_pll_base, DSI_DYN_REFRESH_CTRL, reg);
+		wmb(); /* ensure dynamic fps is cleared */
+		return;
+	}
+
+	if (offset & BIT(DYN_REFRESH_INTF_SEL)) {
+		reg = DSI_GEN_R32(phy->dyn_pll_base, DSI_DYN_REFRESH_CTRL);
+		reg |= BIT(13);
+		DSI_GEN_W32(phy->dyn_pll_base, DSI_DYN_REFRESH_CTRL, reg);
+	}
+
+	if (offset & BIT(DYN_REFRESH_SYNC_MODE)) {
+		reg = DSI_GEN_R32(phy->dyn_pll_base, DSI_DYN_REFRESH_CTRL);
+		reg |= BIT(16);
+		DSI_GEN_W32(phy->dyn_pll_base, DSI_DYN_REFRESH_CTRL, reg);
+	}
+
+	if (offset & BIT(DYN_REFRESH_SWI_CTRL)) {
+		reg = DSI_GEN_R32(phy->dyn_pll_base, DSI_DYN_REFRESH_CTRL);
+		reg |= BIT(0);
+		DSI_GEN_W32(phy->dyn_pll_base, DSI_DYN_REFRESH_CTRL, reg);
+	}
+
+	if (offset & BIT(DYN_REFRESH_SW_TRIGGER)) {
+		reg = DSI_GEN_R32(phy->dyn_pll_base, DSI_DYN_REFRESH_CTRL);
+		reg |= BIT(8);
+		DSI_GEN_W32(phy->dyn_pll_base, DSI_DYN_REFRESH_CTRL, reg);
+		wmb(); /* ensure dynamic fps is triggered */
+	}
+}
+
+int dsi_phy_hw_v4_0_cache_phy_timings(struct dsi_phy_per_lane_cfgs *timings,
+				      u32 *dst, u32 size)
+{
+	int i;
+
+	if (!timings || !dst || !size)
+		return -EINVAL;
+
+	if (size != DSI_PHY_TIMING_V4_SIZE) {
+		DSI_ERR("size mis-match\n");
+		return -EINVAL;
+	}
+
+	for (i = 0; i < size; i++)
+		dst[i] = timings->lane_v4[i];
+
+	return 0;
+}
+
+void dsi_phy_hw_v4_0_set_continuous_clk(struct dsi_phy_hw *phy, bool enable)
+{
+	u32 reg = 0;
+
+	reg = DSI_R32(phy, DSIPHY_CMN_LANE_CTRL1);
+
+	if (enable)
+		reg |= BIT(5) | BIT(6);
+	else
+		reg &= ~(BIT(5) | BIT(6));
+
+	DSI_W32(phy, DSIPHY_CMN_LANE_CTRL1, reg);
+	wmb(); /* make sure request is set */
+}

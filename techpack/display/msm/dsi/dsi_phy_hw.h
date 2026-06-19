@@ -214,6 +214,9 @@ struct phy_dyn_refresh_ops {
 	 */
 	int (*cache_phy_timings)(struct dsi_phy_per_lane_cfgs *timings,
 				  u32 *dst, u32 size);
+
+	void (*dyn_refresh_trigger_sel)(struct dsi_phy_hw *phy,
+			bool enable);
 };
 
 /**
