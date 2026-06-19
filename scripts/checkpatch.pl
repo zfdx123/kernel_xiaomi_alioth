@@ -6082,17 +6082,13 @@ sub process {
 			{
 			}
 
-<<<<<<< HEAD
 			# Extremely long macros may fall off the end of the
 			# available context without closing.  Give a dangling
 			# backslash the benefit of the doubt and allow it
 			# to gobble any hanging open-parens.
 			$dstat =~ s/\(.+\\$/1/;
 
-			# Flatten any obvious string concatentation.
-=======
 			# Flatten any obvious string concatenation.
->>>>>>> aosp-goog/deprecated/android-4.19-stable
 			while ($dstat =~ s/($String)\s*$Ident/$1/ ||
 			       $dstat =~ s/$Ident\s*($String)/$1/)
 			{

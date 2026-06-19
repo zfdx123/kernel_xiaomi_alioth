@@ -325,13 +325,11 @@ int __init lrng_rand_initialize(void)
 {
 	struct seed {
 		ktime_t time;
-		unsigned long data[(LRNG_MAX_DIGESTSIZE /
-				    sizeof(unsigned long))];
+		unsigned long data[DIV_ROUND_UP(LRNG_MAX_DIGESTSIZE,
+						sizeof(unsigned long))];
 		struct new_utsname utsname;
 	} seed __aligned(LRNG_KCAPI_ALIGN);
 	unsigned int i;
-
-	BUILD_BUG_ON(LRNG_MAX_DIGESTSIZE % sizeof(unsigned long));
 
 	seed.time = ktime_get_real();
 
