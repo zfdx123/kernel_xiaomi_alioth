@@ -1186,6 +1186,10 @@ struct dwc3 {
 
 	void			*dwc_ipc_log_ctxt;
 	void			*dwc_dma_ipc_log_ctxt;
+
+	u32			xhci_imod_value;
+	int			core_id;
+	unsigned		ignore_wakeup_src_in_hostmode:1;
 };
 
 #define INCRX_BURST_MODE 0
