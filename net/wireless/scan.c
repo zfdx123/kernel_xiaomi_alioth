@@ -313,21 +313,16 @@ cfg80211_add_nontrans_list(struct cfg80211_bss *trans_bss,
 	}
 	ssid_len = ssid[1];
 	ssid = ssid + 2;
-	rcu_read_unlock();
 
 	/* check if nontrans_bss is in the list */
 	list_for_each_entry(bss, &trans_bss->nontrans_list, nontrans_list) {
-		if (is_bss(bss, nontrans_bss->bssid, ssid, ssid_len))
+		if (is_bss(bss, nontrans_bss->bssid, ssid, ssid_len)) {
+			rcu_read_unlock();
 			return 0;
+		}
 	}
 
-	/* This is a bit weird - it's not on the list, but already on another
-	 * one! The only way that could happen is if there's some BSSID/SSID
-	 * shared by multiple APs in their multi-BSSID profiles, potentially
-	 * with hidden SSID mixed in ... ignore it.
-	 */
-	if (!list_empty(&nontrans_bss->nontrans_list))
-		return -EINVAL;
+	rcu_read_unlock();
 
 	/*
 	 * This is a bit weird - it's not on the list, but already on another
@@ -664,43 +659,48 @@ void cfg80211_bss_expire(struct cfg80211_registered_device *rdev)
 	__cfg80211_bss_expire(rdev, jiffies - IEEE80211_SCAN_RESULT_EXPIRE);
 }
 
-const struct element *
-cfg80211_find_elem_match(u8 eid, const u8 *ies, unsigned int len,
-			 const u8 *match, unsigned int match_len,
-			 unsigned int match_offset)
+const u8 *cfg80211_find_ie_match(u8 eid, const u8 *ies, int len,
+				 const u8 *match, int match_len,
+				 int match_offset)
 {
 	const struct element *elem;
 
+	/* match_offset can't be smaller than 2, unless match_len is
+	 * zero, in which case match_offset must be zero as well.
+	 */
+	if (WARN_ON((match_len && match_offset < 2) ||
+		    (!match_len && match_offset)))
+		return NULL;
+
 	for_each_element_id(elem, eid, ies, len) {
-		if (elem->datalen >= match_offset + match_len &&
-		    !memcmp(elem->data + match_offset, match, match_len))
-			return elem;
+		if (elem->datalen >= match_offset - 2 + match_len &&
+		    !memcmp(elem->data + match_offset - 2, match, match_len))
+			return (void *)elem;
 	}
 
 	return NULL;
 }
-EXPORT_SYMBOL(cfg80211_find_elem_match);
+EXPORT_SYMBOL(cfg80211_find_ie_match);
 
-const struct element *cfg80211_find_vendor_elem(unsigned int oui, int oui_type,
-						const u8 *ies,
-						unsigned int len)
+const u8 *cfg80211_find_vendor_ie(unsigned int oui, int oui_type,
+				  const u8 *ies, int len)
 {
-	const struct element *elem;
+	const u8 *ie;
 	u8 match[] = { oui >> 16, oui >> 8, oui, oui_type };
 	int match_len = (oui_type < 0) ? 3 : sizeof(match);
 
 	if (WARN_ON(oui_type > 0xff))
 		return NULL;
 
-	elem = cfg80211_find_elem_match(WLAN_EID_VENDOR_SPECIFIC, ies, len,
-					match, match_len, 0);
+	ie = cfg80211_find_ie_match(WLAN_EID_VENDOR_SPECIFIC, ies, len,
+				    match, match_len, 2);
 
-	if (!elem || elem->datalen < 4)
+	if (ie && (ie[1] < 4))
 		return NULL;
 
-	return elem;
+	return ie;
 }
-EXPORT_SYMBOL(cfg80211_find_vendor_elem);
+EXPORT_SYMBOL(cfg80211_find_vendor_ie);
 
 /**
  * enum bss_compare_mode - BSS compare mode
@@ -1238,28 +1238,6 @@ cfg80211_bss_update(struct cfg80211_registered_device *rdev,
 	return NULL;
 }
 
-int cfg80211_get_ies_channel_number(const u8 *ie, size_t ielen,
-				    enum nl80211_band band)
-{
-	const u8 *tmp;
-	int channel_number = -1;
-
-	tmp = cfg80211_find_ie(WLAN_EID_DS_PARAMS, ie, ielen);
-	if (tmp && tmp[1] == 1) {
-		channel_number = tmp[2];
-	} else {
-		tmp = cfg80211_find_ie(WLAN_EID_HT_OPERATION, ie, ielen);
-		if (tmp && tmp[1] >= sizeof(struct ieee80211_ht_operation)) {
-			struct ieee80211_ht_operation *htop = (void *)(tmp + 2);
-
-			channel_number = htop->primary_chan;
-		}
-	}
-
-	return channel_number;
-}
-EXPORT_SYMBOL(cfg80211_get_ies_channel_number);
-
 /*
  * Update RX channel information based on the available frame payload
  * information. This is mainly for the 2.4 GHz band where frames can be received
@@ -1273,19 +1251,30 @@ cfg80211_get_bss_channel(struct wiphy *wiphy, const u8 *ie, size_t ielen,
 			 struct ieee80211_channel *channel,
 			 enum nl80211_bss_scan_width scan_width)
 {
+	const u8 *tmp;
 	u32 freq;
 	int channel_number = -1;
 	struct ieee80211_channel *alt_channel;
 
-	channel_number = cfg80211_get_ies_channel_number(ie, ielen, channel->band);
+	tmp = cfg80211_find_ie(WLAN_EID_DS_PARAMS, ie, ielen);
+	if (tmp && tmp[1] == 1) {
+		channel_number = tmp[2];
+	} else {
+		tmp = cfg80211_find_ie(WLAN_EID_HT_OPERATION, ie, ielen);
+		if (tmp && tmp[1] >= sizeof(struct ieee80211_ht_operation)) {
+			struct ieee80211_ht_operation *htop = (void *)(tmp + 2);
+
+			channel_number = htop->primary_chan;
+		}
+	}
 
 	if (channel_number < 0) {
 		/* No channel information in frame payload */
 		return channel;
 	}
 
-	freq = ieee80211_channel_to_freq_khz(channel_number, channel->band);
-	alt_channel = ieee80211_get_channel_khz(wiphy, freq);
+	freq = ieee80211_channel_to_frequency(channel_number, channel->band);
+	alt_channel = ieee80211_get_channel(wiphy, freq);
 	if (!alt_channel) {
 		if (channel->band == NL80211_BAND_2GHZ) {
 			/*
@@ -1419,10 +1408,7 @@ cfg80211_inform_single_bss_data(struct wiphy *wiphy,
 				res = NULL;
 			}
 		}
-<<<<<<< HEAD
-=======
 		spin_unlock_bh(&rdev->bss_lock);
->>>>>>> aosp-goog/deprecated/android-4.19-stable
 
 		if (!res)
 			return NULL;
