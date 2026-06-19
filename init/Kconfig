@@ -1631,6 +1631,12 @@ config KALLSYMS_ALL
 
 	   Say N unless you really need all symbols.
 
+config KSU_MANUAL_HOOK
+	bool "Enable KernelSU manual hooks"
+	help
+	  Enable manually integrated syscall and input hooks used by
+	  KernelSU-compatible implementations.
+
 config KALLSYMS_ABSOLUTE_PERCPU
 	bool
 	depends on KALLSYMS
