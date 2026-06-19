@@ -97,6 +97,7 @@ struct msm_dsi_phy {
 	bool allow_phy_power_off;
 	u32 regulator_min_datarate_bps;
 	bool regulator_required;
+	bool dfps_trigger_mdpintf_flush;
 };
 
 /**
