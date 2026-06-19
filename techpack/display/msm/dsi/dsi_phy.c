@@ -1281,3 +1281,18 @@ void dsi_phy_drv_unregister(void)
 {
 	platform_driver_unregister(&dsi_phy_platform_driver);
 }
+
+void dsi_phy_dynamic_refresh_trigger_sel(struct msm_dsi_phy *phy,
+		bool is_master)
+{
+	if (!phy)
+		return;
+
+	mutex_lock(&phy->phy_lock);
+	if (phy->hw.ops.dyn_refresh_ops.dyn_refresh_trigger_sel)
+		phy->hw.ops.dyn_refresh_ops.dyn_refresh_trigger_sel
+			(&phy->hw, is_master);
+	phy->dfps_trigger_mdpintf_flush = true;
+
+	mutex_unlock(&phy->phy_lock);
+}

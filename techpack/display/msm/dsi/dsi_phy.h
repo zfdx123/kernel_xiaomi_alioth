@@ -324,6 +324,7 @@ void dsi_phy_config_dynamic_refresh(struct msm_dsi_phy *phy,
  * @is_master:	Boolean to indicate if for master or slave.
  */
 void dsi_phy_dynamic_refresh_trigger(struct msm_dsi_phy *phy, bool is_master);
+void dsi_phy_dynamic_refresh_trigger_sel(struct msm_dsi_phy *phy, bool enable);
 
 /**
  * dsi_phy_dynamic_refresh_clear() - clear dynamic refresh config
