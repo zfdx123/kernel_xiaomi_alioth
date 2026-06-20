@@ -38,12 +38,13 @@ extern unsigned int sysctl_sched_force_lb_enable;
 #ifdef CONFIG_SCHED_WALT
 extern unsigned int sysctl_sched_capacity_margin_up[MAX_MARGIN_LEVELS];
 extern unsigned int sysctl_sched_capacity_margin_down[MAX_MARGIN_LEVELS];
-extern unsigned int sysctl_sched_user_hint;
-extern const int sched_user_hint_max;
-extern unsigned int sysctl_sched_cpu_high_irqload;
-extern unsigned int sysctl_sched_boost;
-extern unsigned int sysctl_sched_group_upmigrate_pct;
-extern unsigned int sysctl_sched_group_downmigrate_pct;
+	extern unsigned int sysctl_sched_user_hint;
+	extern const int sched_user_hint_max;
+	extern unsigned int sysctl_sched_cpu_high_irqload;
+	extern unsigned int sysctl_sched_boost;
+	extern unsigned int sysctl_sched_boost_top_app;
+	extern unsigned int sysctl_sched_group_upmigrate_pct;
+	extern unsigned int sysctl_sched_group_downmigrate_pct;
 extern unsigned int sysctl_sched_conservative_pl;
 extern unsigned int sysctl_sched_many_wakeup_threshold;
 extern unsigned int sysctl_sched_walt_rotate_big_tasks;
@@ -113,6 +114,9 @@ int sched_proc_update_handler(struct ctl_table *table, int write,
 #endif
 
 extern int sched_boost_handler(struct ctl_table *table, int write,
+			void __user *buffer, size_t *lenp, loff_t *ppos);
+
+extern int sched_boost_top_app_handler(struct ctl_table *table, int write,
 			void __user *buffer, size_t *lenp, loff_t *ppos);
 /*
  *  control realtime throttling:

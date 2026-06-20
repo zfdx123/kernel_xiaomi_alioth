@@ -604,6 +604,33 @@ static void update_min_vruntime(struct cfs_rq *cfs_rq)
 #endif
 }
 
+#ifdef CONFIG_PERF_HUMANTASK
+static inline bool jump_queue(struct task_struct *tsk, struct rb_node *root)
+{
+	bool jump = false;
+
+	if (tsk && tsk->human_task && root) {
+		if (tsk->human_task > MAX_LEVER ||
+		    sched_mi_boost() == MI_BOOST) {
+			jump = true;
+			goto out;
+		}
+
+		if (tsk->human_task < MAX_LEVER)
+			jump = true;
+
+		tsk->human_task = jump ? ++tsk->human_task : 1;
+	}
+out:
+	if (jump)
+		trace_sched_debug_einfo(tsk, "jumper", "boostx",
+			tsk->human_task, sched_boost(), sched_mi_boost(),
+			sched_boost_top_app(), 0);
+
+	return jump;
+}
+#endif
+
 /*
  * Enqueue an entity into the rb-tree:
  */
@@ -613,6 +640,18 @@ static void __enqueue_entity(struct cfs_rq *cfs_rq, struct sched_entity *se)
 	struct rb_node *parent = NULL;
 	struct sched_entity *entry;
 	bool leftmost = true;
+#ifdef CONFIG_PERF_HUMANTASK
+	bool speed = false;
+	struct task_struct *tsk = NULL;
+
+	if (entity_is_task(se)) {
+		tsk = task_of(se);
+		speed = jump_queue(tsk, *link);
+	}
+
+	if (speed)
+		se->vruntime = tsk->human_task * 1000000;
+#endif
 
 	/*
 	 * Find the right place in the rbtree:
@@ -631,6 +670,11 @@ static void __enqueue_entity(struct cfs_rq *cfs_rq, struct sched_entity *se)
 			leftmost = false;
 		}
 	}
+
+#ifdef CONFIG_PERF_HUMANTASK
+	if (speed && entry)
+		se->vruntime = entry->vruntime - 1;
+#endif
 
 	rb_link_node(&se->run_node, parent, link);
 	rb_insert_color_cached(&se->run_node,
@@ -8014,6 +8058,9 @@ done:
 			sync, fbt_env.need_idle, fbt_env.fastpath,
 			placement_boost, start_t, boosted, is_rtg,
 			get_rtg_status(p), start_cpu);
+#ifdef CONFIG_PERF_HUMANTASK
+	p->cpux = best_energy_cpu;
+#endif
 
 	return best_energy_cpu;
 

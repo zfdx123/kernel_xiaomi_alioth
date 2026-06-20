@@ -2785,8 +2785,23 @@ int cgroup_attach_task(struct cgroup *dst_cgrp, struct task_struct *leader,
 
 	cgroup_migrate_finish(&mgctx);
 
-	if (!ret)
+	if (!ret) {
 		TRACE_CGROUP_PATH(attach_task, dst_cgrp, leader, threadgroup);
+#ifdef CONFIG_PERF_HUMANTASK
+		if (strstr(trace_cgroup_path, "top-app") &&
+		    (leader->pid == leader->tgid ||
+		     !strcmp(leader->comm, "RenderThread"))) {
+			task_lock(leader);
+			if (!leader->human_task)
+				leader->human_task++;
+			task_unlock(leader);
+		} else if (strlen(trace_cgroup_path) > 2) {
+			task_lock(leader);
+			leader->human_task = 0;
+			task_unlock(leader);
+		}
+#endif
+	}
 
 	return ret;
 }

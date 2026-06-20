@@ -1093,6 +1093,18 @@ config SCHED_CORE_CTL
 
 	  If unsure, say N here.
 
+config PERF_HUMANTASK
+	bool "enable feature humantask"
+	default n
+	help
+	  support switch on/off of sched humantask.
+
+config PERF_CRITICAL_RT_TASK
+	bool "enable set rt binder thread" if EXPERT
+	default n
+	help
+	  speedui feature set BlastBufferQueue binder thread FIFO.
+
 menuconfig NAMESPACES
 	bool "Namespaces support" if EXPERT
 	depends on MULTIUSER
