@@ -532,10 +532,9 @@ static long gf_compat_ioctl(struct file *filp, unsigned int cmd,
 
 static irqreturn_t gf_irq(int irq, void *handle)
 {
-	struct gf_dev *gf_dev = &gf;
 #if defined(GF_NETLINK_ENABLE)
 	char temp[4] = { 0x0 };
-	uint32_t key_input = 0;
+
 	temp[0] = GF_NET_EVENT_IRQ;
 	pr_debug("%s enter\n", __func__);
 	__pm_wakeup_event(fp_wakelock, WAKELOCK_HOLD_TIME);
